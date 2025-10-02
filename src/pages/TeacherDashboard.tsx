@@ -1,7 +1,11 @@
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { 
   Plus, 
   FileText, 
@@ -12,8 +16,57 @@ import {
   CheckCircle2
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
 const TeacherDashboard = () => {
+  const { user, signOut } = useAuth();
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    title: "",
+    course: "",
+    duration_minutes: "",
+    total_points: ""
+  });
+
+  const handleCreateExam = async () => {
+    if (!formData.title || !formData.course || !formData.duration_minutes || !formData.total_points) {
+      toast({
+        title: "Error",
+        description: "Please fill in all fields",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from("exams").insert({
+        title: formData.title,
+        course: formData.course,
+        duration_minutes: parseInt(formData.duration_minutes),
+        total_points: parseInt(formData.total_points),
+        teacher_id: user?.id,
+        status: "scheduled"
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Exam created successfully"
+      });
+
+      setCreateDialogOpen(false);
+      setFormData({ title: "", course: "", duration_minutes: "", total_points: "" });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create exam",
+        variant: "destructive"
+      });
+    }
+  };
   const exams = [
     { id: 1, title: "Data Structures Final", course: "CS101", students: 45, status: "active", flagged: 3 },
     { id: 2, title: "Algorithms Midterm", course: "CS201", students: 38, status: "completed", flagged: 1 },
@@ -45,10 +98,64 @@ const TeacherDashboard = () => {
             </div>
             
             <div className="flex items-center gap-3">
-              <Button variant="default">
-                <Plus className="w-4 h-4 mr-2" />
-                Create Exam
-              </Button>
+              <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="default">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create Exam
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Create New Exam</DialogTitle>
+                    <DialogDescription>Fill in the details to create a new exam</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="title">Exam Title</Label>
+                      <Input
+                        id="title"
+                        value={formData.title}
+                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                        placeholder="e.g., Data Structures Final"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="course">Course</Label>
+                      <Input
+                        id="course"
+                        value={formData.course}
+                        onChange={(e) => setFormData({ ...formData, course: e.target.value })}
+                        placeholder="e.g., CS101"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="duration">Duration (minutes)</Label>
+                      <Input
+                        id="duration"
+                        type="number"
+                        value={formData.duration_minutes}
+                        onChange={(e) => setFormData({ ...formData, duration_minutes: e.target.value })}
+                        placeholder="e.g., 90"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="points">Total Points</Label>
+                      <Input
+                        id="points"
+                        type="number"
+                        value={formData.total_points}
+                        onChange={(e) => setFormData({ ...formData, total_points: e.target.value })}
+                        placeholder="e.g., 100"
+                      />
+                    </div>
+                    <Button onClick={handleCreateExam} className="w-full">
+                      Create Exam
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+              <Button variant="ghost" onClick={signOut}>Sign Out</Button>
               <Link to="/">
                 <Button variant="ghost">Home</Button>
               </Link>
